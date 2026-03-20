@@ -1,4 +1,4 @@
-"""Application settings loaded from environment variables."""
+"""Application settings loaded from environment variables and credential chain."""
 
 from __future__ import annotations
 
@@ -25,6 +25,33 @@ _MODEL_KEY_MAP: dict[str, str] = {
 _ALL_KEY_NAMES = sorted({v for v in _MODEL_KEY_MAP.values() if v})
 
 
+def _resolve_github_token_early() -> str | None:
+    """Try to resolve GitHub token before pydantic validation.
+
+    This runs the non-interactive part of the credential chain
+    (env var, gh CLI, keychain) and sets GITHUB_TOKEN in the
+    environment so pydantic-settings can find it.
+    """
+    if os.environ.get("GITHUB_TOKEN"):
+        return os.environ["GITHUB_TOKEN"]
+
+    from .auth import resolve_github_token
+    token = resolve_github_token(interactive=False)
+    if token:
+        os.environ["GITHUB_TOKEN"] = token
+    return token
+
+
+def _resolve_llm_key_early(model: str) -> str | None:
+    """Try to resolve LLM API key before pydantic validation."""
+    from .auth import resolve_llm_key
+    return resolve_llm_key(model, interactive=False)
+
+
+# Run GitHub token resolution at import time so pydantic can find it
+_resolve_github_token_early()
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -33,7 +60,7 @@ class Settings(BaseSettings):
         populate_by_name=True,
     )
 
-    github_token: str = Field(description="GitHub personal access token")
+    github_token: str = Field(default="", description="GitHub personal access token")
 
     # LLM model — any litellm-compatible model string.
     # API keys are read from standard env vars: ANTHROPIC_API_KEY, OPENAI_API_KEY, etc.
@@ -68,8 +95,21 @@ class Settings(BaseSettings):
         return v
 
     @model_validator(mode="after")
+    def check_github_token(self) -> Settings:
+        """Verify GitHub token is available."""
+        if not self.github_token:
+            raise ValueError(
+                "GitHub token not found. Set GITHUB_TOKEN, run 'stitcher setup', "
+                "or install the gh CLI (https://cli.github.com)."
+            )
+        return self
+
+    @model_validator(mode="after")
     def check_llm_api_key(self) -> Settings:
         """Verify the right API key is set for the chosen model."""
+        # Try the credential chain (keychain, etc.) before failing
+        _resolve_llm_key_early(self.model)
+
         model_lower = self.model.lower()
 
         # Find which key this model needs
@@ -86,6 +126,6 @@ class Settings(BaseSettings):
         if not os.environ.get(required_key):
             raise ValueError(
                 f"Model '{self.model}' requires {required_key} to be set. "
-                f"Set it in your environment or .env file."
+                f"Run 'stitcher setup' or set it in your environment."
             )
         return self

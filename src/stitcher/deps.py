@@ -8,10 +8,15 @@ implementation gems.
 from __future__ import annotations
 
 import asyncio
+import logging
 import re
+
+import httpx
 
 from .github_client import GitHubClient
 from .models import EvaluatedResult, SearchBrief, SearchQuery
+
+logger = logging.getLogger("stitcher.deps")
 
 # Manifest files and how to extract dependency names from them
 _MANIFEST_PATTERNS: dict[str, tuple[str, re.Pattern]] = {
@@ -75,13 +80,30 @@ async def extract_deps_from_results(
             for manifest, (lang, pattern) in _MANIFEST_PATTERNS.items():
                 try:
                     content = await gh.get_file_content(repo_name, manifest, max_lines=200)
+                except httpx.HTTPStatusError as exc:
+                    if exc.response.status_code != 404:
+                        logger.warning(
+                            "HTTP %s fetching %s from %s: %s",
+                            exc.response.status_code, manifest, repo_name, exc,
+                        )
+                    continue
+                except httpx.TimeoutException as exc:
+                    logger.warning("Timeout fetching %s from %s: %s", manifest, repo_name, exc)
+                    continue
+                except (httpx.RequestError, ValueError) as exc:
+                    logger.warning("Error fetching %s from %s: %s", manifest, repo_name, exc)
+                    continue
+                try:
                     matches = pattern.findall(content)
                     for dep in matches:
                         dep_clean = dep.strip().lower().split("[")[0]  # Remove extras like [features]
                         if dep_clean and dep_clean not in _IGNORE_DEPS and len(dep_clean) >= 2:
                             deps.add(dep_clean)
                     break  # Found a manifest, don't look for others
-                except Exception:
+                except (re.error, AttributeError, TypeError) as exc:
+                    logger.warning(
+                        "Failed to parse manifest %s from %s: %s", manifest, repo_name, exc,
+                    )
                     continue
         return deps
 

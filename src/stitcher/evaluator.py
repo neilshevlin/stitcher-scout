@@ -3,13 +3,18 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import re
 
+import httpx
+
 from .github_client import GitHubClient
-from .llm import LLMClient
+from .llm import LLMClient, LLMError
 from .models import EvaluatedResult, ProjectContext, SearchBrief, SearchResult
 from .prompts.evaluate import SYSTEM, build_user_prompt
 from .scoring import compute_candidate_rank, format_quality_signals
+
+logger = logging.getLogger("stitcher.evaluator")
 
 # Minimum relevance score to include in results
 MIN_RELEVANCE = 0.4
@@ -65,7 +70,23 @@ async def _evaluate_one(
             file_path = candidates[0]
 
         code = await gh.get_file_content(result.repo.full_name, file_path, max_lines=max_lines)
-    except Exception:
+    except httpx.HTTPStatusError as exc:
+        logger.warning(
+            "HTTP %s fetching code from %s/%s (brief=%s): %s",
+            exc.response.status_code, result.repo.full_name, file_path, brief.id, exc,
+        )
+        return None
+    except httpx.TimeoutException as exc:
+        logger.warning(
+            "Timeout fetching code from %s/%s (brief=%s): %s",
+            result.repo.full_name, file_path, brief.id, exc,
+        )
+        return None
+    except (httpx.RequestError, ValueError, KeyError) as exc:
+        logger.warning(
+            "Error fetching code from %s/%s (brief=%s): %s",
+            result.repo.full_name, file_path, brief.id, exc,
+        )
         return None
 
     prompt = build_user_prompt(
@@ -90,7 +111,17 @@ async def _evaluate_one(
         # Attach the original search result
         evaluated.search_result = result
         return evaluated
-    except Exception:
+    except LLMError as exc:
+        logger.warning(
+            "LLM evaluation failed for repo %s (brief=%s): %s",
+            result.repo.full_name, brief.id, exc,
+        )
+        return None
+    except (ValueError, KeyError, TypeError) as exc:
+        logger.warning(
+            "Parse error evaluating repo %s (brief=%s): %s",
+            result.repo.full_name, brief.id, exc,
+        )
         return None
 
 

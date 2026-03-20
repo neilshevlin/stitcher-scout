@@ -29,6 +29,10 @@ dependencies = [
     "mcp>=1.0",
 ]
 
+[project.optional-dependencies]
+keychain = ["keyring>=25.0"]
+cache = ["diskcache>=5.6"]
+
 [project.urls]
 Homepage = "https://github.com/neilshevlin/stitcher-scout"
 Documentation = "https://neilshevlin.github.io/stitcher-scout/"

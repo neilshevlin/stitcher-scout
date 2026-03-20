@@ -4,10 +4,18 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import json
 from datetime import datetime, timezone
 
 import httpx
 
+from .cache import (
+    TTL_FILE_CONTENT,
+    TTL_REPO_META,
+    TTL_SEARCH,
+    cache_get,
+    cache_set,
+)
 from .models import RepoInfo, SearchResult
 
 
@@ -104,6 +112,13 @@ class GitHubClient:
 
     async def enrich_repo(self, repo: RepoInfo) -> RepoInfo:
         """Fetch additional quality signals for a repo: contributors, releases, CI presence."""
+        cached = cache_get("enrich_repo", repo.full_name)
+        if cached is not None:
+            repo.contributors_count = cached["contributors_count"]
+            repo.release_count = cached["release_count"]
+            repo.has_ci = cached["has_ci"]
+            return repo
+
         contributors, releases, has_ci = await asyncio.gather(
             self._get_contributors_count(repo.full_name),
             self._get_release_count(repo.full_name),
@@ -112,6 +127,12 @@ class GitHubClient:
         repo.contributors_count = contributors
         repo.release_count = releases
         repo.has_ci = has_ci
+
+        cache_set(
+            "enrich_repo", repo.full_name,
+            value={"contributors_count": contributors, "release_count": releases, "has_ci": has_ci},
+            ttl=TTL_REPO_META,
+        )
         return repo
 
     async def _get_contributors_count(self, full_name: str) -> int:
@@ -202,6 +223,11 @@ class GitHubClient:
         for key, val in quals.items():
             q += f" {key}:{val}"
 
+        cache_key_parts = [q, str(per_page), str(sort), order]
+        cached = cache_get("search_repos", *cache_key_parts)
+        if cached is not None:
+            return cached
+
         params: dict = {"q": q, "per_page": per_page}
         if sort:
             params["sort"] = sort
@@ -218,11 +244,17 @@ class GitHubClient:
                     repo=self._parse_repo(item),
                 )
             )
+
+        cache_set("search_repos", *cache_key_parts, value=results, ttl=TTL_SEARCH)
         return results
 
     # --- File content ---
 
     async def get_file_content(self, full_name: str, path: str, max_lines: int = 500) -> str:
+        cached = cache_get("file_content", full_name, path, str(max_lines))
+        if cached is not None:
+            return cached
+
         resp = await self._request("GET", f"/repos/{full_name}/contents/{path}")
         data = resp.json()
 
@@ -235,7 +267,10 @@ class GitHubClient:
         if len(lines) > max_lines:
             lines = lines[:max_lines]
             lines.append(f"\n... truncated at {max_lines} lines ...")
-        return "\n".join(lines)
+        result = "\n".join(lines)
+
+        cache_set("file_content", full_name, path, str(max_lines), value=result, ttl=TTL_FILE_CONTENT)
+        return result
 
     async def get_directory_tree(self, full_name: str, path: str = "") -> list[str]:
         resp = await self._request("GET", f"/repos/{full_name}/contents/{path}")

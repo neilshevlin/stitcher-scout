@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections import Counter
 from datetime import datetime, timezone
 
 from .models import EvaluatedResult, ScoutReport, SearchResult
@@ -96,6 +97,16 @@ def render_markdown(report: ScoutReport) -> str:
             )
             lines.append("")
 
+    # Ecosystem Map
+    ecosystem_lines = _render_ecosystem_map(report)
+    if ecosystem_lines:
+        lines.extend(ecosystem_lines)
+
+    # Patterns & Insights
+    insight_lines = _render_insights(report)
+    if insight_lines:
+        lines.extend(insight_lines)
+
     if report.unexpected_findings:
         lines.append("## Unexpected Findings\n")
         for finding in report.unexpected_findings:
@@ -108,7 +119,136 @@ def render_markdown(report: ScoutReport) -> str:
             lines.append(f"- {gap}")
         lines.append("")
 
+    if report.token_usage:
+        tu = report.token_usage
+        lines.append("## Cost Summary\n")
+        lines.append(f"- **Model:** {tu.model}")
+        lines.append(f"- **Prompt tokens:** {tu.prompt_tokens:,}")
+        lines.append(f"- **Completion tokens:** {tu.completion_tokens:,}")
+        lines.append(f"- **Total tokens:** {tu.total_tokens:,}")
+        lines.append(f"- **Estimated cost:** ${tu.total_cost:.4f}")
+        lines.append("")
+
     return "\n".join(lines)
+
+
+def _render_ecosystem_map(report: ScoutReport) -> list[str]:
+    """Build an ecosystem map table of all unique repos across subproblems."""
+    repo_data: dict[str, dict] = {}
+    for sp in report.subproblems:
+        for rec in sp.recommended:
+            repo = rec.search_result.repo
+            name = repo.full_name
+            if name not in repo_data:
+                repo_data[name] = {
+                    "stars": repo.stars,
+                    "language": repo.language or "Unknown",
+                    "subproblems": set(),
+                    "url": repo.url,
+                }
+            repo_data[name]["subproblems"].add(sp.subproblem)
+            if repo.stars > repo_data[name]["stars"]:
+                repo_data[name]["stars"] = repo.stars
+
+    if not repo_data:
+        return []
+
+    sorted_repos = sorted(
+        repo_data.items(),
+        key=lambda item: (len(item[1]["subproblems"]), item[1]["stars"]),
+        reverse=True,
+    )
+
+    lines: list[str] = []
+    lines.append("## Ecosystem Map\n")
+    lines.append("| Repository | Stars | Language | Relevant to |")
+    lines.append("|---|---|---|---|")
+
+    for name, data in sorted_repos:
+        subs = ", ".join(sorted(data["subproblems"]))
+        lines.append(
+            f"| [{name}]({data['url']}) | {data['stars']:,} | {data['language']} | {subs} |"
+        )
+
+    lines.append("")
+    return lines
+
+
+def _render_insights(report: ScoutReport) -> list[str]:
+    """Compute and render patterns & insights from the report data."""
+    all_repos = []
+    for sp in report.subproblems:
+        for rec in sp.recommended:
+            all_repos.append(rec.search_result.repo)
+
+    if not all_repos:
+        return []
+
+    seen: set[str] = set()
+    unique_repos = []
+    for repo in all_repos:
+        if repo.full_name not in seen:
+            seen.add(repo.full_name)
+            unique_repos.append(repo)
+
+    lines: list[str] = []
+    lines.append("## Patterns & Insights\n")
+
+    lang_counts = Counter(r.language for r in unique_repos if r.language)
+    if lang_counts:
+        top_lang, top_count = lang_counts.most_common(1)[0]
+        pct = top_count / len(unique_repos) * 100
+        lines.append(f"- **Dominant language:** {top_lang} ({pct:.0f}% of repos)")
+
+    all_topics = Counter()
+    for repo in unique_repos:
+        all_topics.update(repo.topics)
+    if all_topics:
+        top_topics = [t for t, _ in all_topics.most_common(5)]
+        lines.append(f"- **Common topics:** {', '.join(top_topics)}")
+
+    license_counts = Counter()
+    for repo in unique_repos:
+        if repo.license_name:
+            license_counts[repo.license_name] += 1
+    if license_counts:
+        total_licensed = sum(license_counts.values())
+        parts = []
+        for lic, count in license_counts.most_common():
+            pct = count / total_licensed * 100
+            parts.append(f"{pct:.0f}% {lic}")
+        lines.append(f"- **License distribution:** {', '.join(parts)}")
+
+    now = datetime.now(timezone.utc)
+    ages_days = []
+    activity_days = []
+    for repo in unique_repos:
+        if repo.created_at:
+            ages_days.append((now - repo.created_at).days)
+        if repo.last_pushed:
+            activity_days.append((now - repo.last_pushed).days)
+
+    if ages_days:
+        avg_age = sum(ages_days) / len(ages_days)
+        if avg_age >= 365:
+            lines.append(f"- **Average repo age:** {avg_age / 365:.1f} years")
+        else:
+            lines.append(f"- **Average repo age:** {avg_age:.0f} days")
+
+    if activity_days:
+        avg_activity = sum(activity_days) / len(activity_days)
+        if avg_activity <= 7:
+            activity_label = "very active (avg last push within a week)"
+        elif avg_activity <= 30:
+            activity_label = "active (avg last push within a month)"
+        elif avg_activity <= 180:
+            activity_label = "moderate (avg last push within 6 months)"
+        else:
+            activity_label = f"low (avg last push {avg_activity:.0f} days ago)"
+        lines.append(f"- **Activity level:** {activity_label}")
+
+    lines.append("")
+    return lines
 
 
 def render_search_results_simple(results: list[SearchResult], query: str) -> str:

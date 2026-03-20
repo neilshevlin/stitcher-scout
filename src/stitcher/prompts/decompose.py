@@ -1,5 +1,14 @@
 """Prompt templates for the decomposition step."""
 
+# Maps detected language names to GitHub search language qualifiers.
+LANGUAGE_QUALIFIERS: dict[str, str] = {
+    "python": "python",
+    "rust": "rust",
+    "javascript": "javascript",
+    "typescript": "typescript",
+    "go": "go",
+}
+
 SYSTEM = """\
 You are a senior software engineer who excels at breaking down project requirements \
 into discrete, searchable sub-problems. Your job is to analyze what the user wants \
@@ -86,6 +95,12 @@ def build_user_prompt(description: str, language: str | None = None, dependencie
 
     if language:
         parts.append(f"\nPrimary language: {language}")
+        qualifier = LANGUAGE_QUALIFIERS.get(language)
+        if qualifier:
+            parts.append(
+                f"\nThe project uses {language}. Prioritize {language} implementations in search queries."
+                f"\nAdd language:{qualifier} to repository searches where appropriate."
+            )
     if dependencies:
         parts.append(f"\nKey dependencies: {', '.join(dependencies)}")
 

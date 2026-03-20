@@ -11,10 +11,15 @@ from __future__ import annotations
 
 import asyncio
 import copy
+import logging
+
+import httpx
 
 from .github_client import GitHubClient
 from .models import SearchBrief, SearchQuery, SearchResult
 from .scoring import compute_repo_quality_score
+
+logger = logging.getLogger("stitcher.searcher")
 
 # Minimum quality score to keep a result (filters out 0-star personal repos)
 MIN_QUALITY_SCORE = 0.15
@@ -80,7 +85,23 @@ async def _run_single_query(
             results = await gh.search_repos("", topic_qualifiers, per_page=8)
         else:
             return []
-    except Exception:
+    except httpx.HTTPStatusError as exc:
+        logger.warning(
+            "HTTP %s for query %r (brief=%s, type=%s): %s",
+            exc.response.status_code, query.query, brief.id, query.search_type, exc,
+        )
+        return []
+    except httpx.TimeoutException as exc:
+        logger.warning(
+            "Timeout for query %r (brief=%s, type=%s): %s",
+            query.query, brief.id, query.search_type, exc,
+        )
+        return []
+    except (httpx.RequestError, ValueError, KeyError) as exc:
+        logger.warning(
+            "Request/parse error for query %r (brief=%s, type=%s): %s",
+            query.query, brief.id, query.search_type, exc,
+        )
         return []
 
     # Tag results with the brief that produced them
@@ -96,7 +117,17 @@ async def _enrich_result(result: SearchResult, gh: GitHubClient) -> SearchResult
         result.repo = full_repo
         await gh.enrich_repo(result.repo)
         result.repo.quality_score = compute_repo_quality_score(result.repo)
-    except Exception:
+    except httpx.HTTPStatusError as exc:
+        logger.warning(
+            "HTTP %s enriching repo %s: %s",
+            exc.response.status_code, result.repo.full_name, exc,
+        )
+        result.repo.quality_score = compute_repo_quality_score(result.repo)
+    except httpx.TimeoutException as exc:
+        logger.warning("Timeout enriching repo %s: %s", result.repo.full_name, exc)
+        result.repo.quality_score = compute_repo_quality_score(result.repo)
+    except (httpx.RequestError, ValueError, KeyError) as exc:
+        logger.warning("Error enriching repo %s: %s", result.repo.full_name, exc)
         result.repo.quality_score = compute_repo_quality_score(result.repo)
     return result
 
@@ -152,7 +183,19 @@ async def execute_briefs(
         async with semaphore:
             return await _enrich_result(result, gh)
 
-    enriched = await asyncio.gather(*[_bounded_enrich(r) for r in unique_repos.values()])
+    enriched_raw = await asyncio.gather(
+        *[_bounded_enrich(r) for r in unique_repos.values()],
+        return_exceptions=True,
+    )
+
+    # Filter out exceptions from the gather results
+    enriched: list[SearchResult] = []
+    for i, r in enumerate(enriched_raw):
+        if isinstance(r, BaseException):
+            repo_name = list(unique_repos.values())[i].repo.full_name
+            logger.warning("Unhandled error enriching repo %s: %s", repo_name, r)
+        else:
+            enriched.append(r)
 
     # Build a map of enriched repo data
     repo_map: dict[str, SearchResult] = {}

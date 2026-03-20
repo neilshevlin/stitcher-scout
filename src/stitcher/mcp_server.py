@@ -79,6 +79,8 @@ async def scout(
     mode: str = "fast",
     model: str | None = None,
     save_report: str | None = None,
+    generate_brief: bool = False,
+    brief_language: str | None = None,
 ) -> str:
     """Search GitHub for real, working code relevant to a project description.
 
@@ -92,9 +94,12 @@ async def scout(
         mode: Search mode — "fast" (no refinement) or "deep" (iterative refinement).
         model: LLM model to use (e.g. "gpt-4o", "claude-sonnet-4-20250514"). Uses default from config if not set.
         save_report: Directory to write a .md report file. If not provided, no file is written.
+        generate_brief: When true, include a model-agnostic research brief and starter dependency manifest in the response.
+        brief_language: Target language for the dependency manifest (e.g. "python", "rust", "javascript", "go"). Auto-detected if not set.
 
     Returns:
         JSON with structured results including sub-problems, recommended repos, scores, and relevant files.
+        When generate_brief is true, also includes "research_brief" and "deps_manifest" fields.
     """
     from .agent import ScoutError, run_scout
     from .config import Settings
@@ -109,7 +114,7 @@ async def scout(
         return json.dumps({"error": f"Configuration error: {e}"})
 
     try:
-        report = await run_scout(description, repo, settings)
+        report = await run_scout(description, repo, settings, progress=False)
     except ScoutError as e:
         return json.dumps({"error": str(e)})
     except Exception as e:
@@ -122,5 +127,14 @@ async def scout(
         markdown = render_markdown(report)
         report_path = _write_report_file(markdown, description, save_report)
         result["report_file"] = report_path
+
+    # Include research brief and deps manifest when requested
+    if generate_brief:
+        from .brief import generate_brief as _gen_brief
+        from .brief import generate_deps_manifest, _detect_language
+
+        lang = brief_language or _detect_language(report) or "python"
+        result["research_brief"] = _gen_brief(report, language=lang)
+        result["deps_manifest"] = generate_deps_manifest(report, language=lang)
 
     return json.dumps(result, indent=2)

@@ -127,6 +127,16 @@ class SubproblemReport(BaseModel):
     recommended: list[EvaluatedResult] = []
 
 
+class TokenUsageSummary(BaseModel):
+    """Token usage and cost summary attached to a report."""
+
+    prompt_tokens: int = 0
+    completion_tokens: int = 0
+    total_tokens: int = 0
+    total_cost: float = 0.0
+    model: str = ""
+
+
 class ScoutReport(BaseModel):
     """The complete output report."""
 
@@ -134,3 +144,5 @@ class ScoutReport(BaseModel):
     subproblems: list[SubproblemReport] = []
     unexpected_findings: list[str] = []
     gaps: list[str] = []
+    warnings: list[str] = []
+    token_usage: TokenUsageSummary | None = None

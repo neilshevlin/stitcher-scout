@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+from dataclasses import dataclass
 from typing import TypeVar
 
 import litellm
@@ -25,6 +26,17 @@ class LLMError(Exception):
     """Raised when an LLM call fails after retries."""
 
 
+@dataclass
+class TokenUsage:
+    """Accumulated token usage and cost across LLM calls."""
+
+    prompt_tokens: int = 0
+    completion_tokens: int = 0
+    total_tokens: int = 0
+    total_cost: float = 0.0
+    model: str = ""
+
+
 class LLMClient:
     """Provider-agnostic LLM client powered by litellm.
 
@@ -40,6 +52,32 @@ class LLMClient:
         ANTHROPIC_API_KEY, OPENAI_API_KEY, GEMINI_API_KEY, etc.
     """
 
+    def __init__(self) -> None:
+        self._usage = TokenUsage()
+
+    def get_usage(self) -> TokenUsage:
+        """Return accumulated token usage and cost."""
+        return self._usage
+
+    def reset_usage(self) -> None:
+        """Reset accumulated token usage and cost."""
+        self._usage = TokenUsage()
+
+    def _track_usage(self, response: litellm.ModelResponse, model: str) -> None:
+        """Accumulate token usage and cost from a litellm response."""
+        self._usage.model = model
+        usage = getattr(response, "usage", None)
+        if usage:
+            self._usage.prompt_tokens += getattr(usage, "prompt_tokens", 0) or 0
+            self._usage.completion_tokens += getattr(usage, "completion_tokens", 0) or 0
+            self._usage.total_tokens += getattr(usage, "total_tokens", 0) or 0
+
+        try:
+            cost = litellm.completion_cost(completion_response=response)
+            self._usage.total_cost += cost
+        except Exception:
+            pass
+
     async def complete(self, prompt: str, system: str = "", model: str = "claude-sonnet-4-20250514") -> str:
         """Simple text completion."""
         messages: list[dict] = []
@@ -48,6 +86,7 @@ class LLMClient:
         messages.append({"role": "user", "content": prompt})
 
         response = await self._call_with_retry(model=model, messages=messages, max_tokens=4096)
+        self._track_usage(response, model)
         return response.choices[0].message.content or ""
 
     async def complete_structured(
@@ -84,6 +123,7 @@ class LLMClient:
             tools=tools,
             tool_choice={"type": "function", "function": {"name": tool_name}},
         )
+        self._track_usage(response, model)
 
         message = response.choices[0].message
         if message.tool_calls:
