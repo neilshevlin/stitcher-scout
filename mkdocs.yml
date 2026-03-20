@@ -1,0 +1,43 @@
+site_name: stitcher-scout
+site_url: https://neilshevlin.github.io/stitcher/
+site_description: LLM-powered GitHub code scout — find real, working code for your project
+repo_url: https://github.com/neilshevlin/stitcher
+repo_name: neilshevlin/stitcher
+
+theme:
+  name: material
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.sections
+    - navigation.expand
+    - content.code.copy
+    - search.highlight
+
+nav:
+  - Home: index.md
+  - Getting Started: getting-started.md
+  - How It Works: how-it-works.md
+  - Configuration: configuration.md
+  - MCP Integration: mcp-integration.md
+
+markdown_extensions:
+  - tables
+  - fenced_code
+  - codehilite
+  - admonition
+  - toc:
+      permalink: true

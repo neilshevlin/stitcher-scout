@@ -1,0 +1,56 @@
+[project]
+name = "stitcher-scout"
+version = "0.1.0"
+description = "LLM-powered GitHub code scout — find real, working code for your project"
+readme = "README.md"
+license = {file = "LICENSE"}
+authors = [
+    { name = "Neil Shevlin", email = "neilshevlin.98@gmail.com" }
+]
+requires-python = ">=3.12"
+keywords = ["github", "code-search", "llm", "mcp", "code-scout", "developer-tools"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Libraries",
+    "Topic :: Software Development :: Quality Assurance",
+]
+dependencies = [
+    "httpx>=0.27",
+    "typer>=0.15",
+    "rich>=13.0",
+    "pydantic>=2.0",
+    "pydantic-settings>=2.0",
+    "litellm>=1.50",
+    "mcp>=1.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/neilshevlin/stitcher"
+Documentation = "https://neilshevlin.github.io/stitcher/"
+Repository = "https://github.com/neilshevlin/stitcher"
+Issues = "https://github.com/neilshevlin/stitcher/issues"
+
+[project.scripts]
+stitcher = "stitcher.cli:app"
+stitcher-mcp = "stitcher.mcp_server:mcp.run"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/stitcher"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.24",
+]
+docs = [
+    "mkdocs-material>=9.0",
+]
