@@ -13,8 +13,7 @@ pip install stitcher-scout
 ```
 
 ```bash
-export GITHUB_TOKEN="ghp_..."
-export ANTHROPIC_API_KEY="sk-ant-..."
+stitcher setup    # interactive credential setup (or set env vars manually)
 ```
 
 ```bash
@@ -33,10 +32,11 @@ Description ──► Decompose ──► Search ──► Evaluate ──► Re
 ```
 
 1. **Decompose** — An LLM breaks your description into sub-problems (core libraries, architecture patterns, specific features)
-2. **Search** — Each sub-problem generates multiple GitHub queries with stratified search (by stars, recency, mid-range)
+2. **Search** — Each sub-problem generates multiple GitHub queries with stratified search (by stars, recency, mid-range). Results are cached locally for speed.
 3. **Evaluate** — The LLM reads actual source code from candidate repos, scoring relevance and quality
-4. **Refine** (deep mode) — Extracts domain vocabulary from top results, follows dependency graphs, generates new searches
-5. **Report** — Produces a structured report with recommended repos, relevant files, quality signals, and caveats
+4. **Deduplicate** — Repos appearing across multiple sub-problems are consolidated; cross-cutting "Swiss Army knife" repos are flagged
+5. **Refine** (deep mode) — Extracts domain vocabulary from top results, follows dependency graphs, generates new searches
+6. **Report** — Produces a structured report with recommended repos, ecosystem map, patterns & insights, quality signals, and cost summary
 
 See [How It Works](how-it-works.md) for the full pipeline breakdown.
 
@@ -48,6 +48,12 @@ stitcher scout "OAuth2 service with PKCE flow"
 
 # Deep search with refinement
 stitcher scout --mode deep "GPU cluster scheduler"
+
+# Preview the search strategy before running
+stitcher scout --explain "GPU cluster scheduler"
+
+# Generate a research brief + dependency manifest
+stitcher scout --brief "WebSocket server in Python"
 
 # Use a different model
 stitcher scout --model gpt-4o "Event sourcing in Go"

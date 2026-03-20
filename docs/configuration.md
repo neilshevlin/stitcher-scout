@@ -1,6 +1,16 @@
 # Configuration
 
-All settings are loaded from environment variables or a `.env` file in your working directory. No configuration files are required beyond the API keys.
+All settings are loaded from environment variables, `.env` files, the `gh` CLI, or your system keychain. Run `stitcher setup` for interactive configuration.
+
+## Credential resolution
+
+Stitcher resolves credentials in this order (first match wins):
+
+1. **Environment variables** — `GITHUB_TOKEN`, `ANTHROPIC_API_KEY`, etc.
+2. **`.env` file** — in your working directory
+3. **`gh` CLI** — `gh auth token` (GitHub token only)
+4. **System keychain** — macOS Keychain, Linux secret-service (requires `pip install stitcher-scout[keychain]`)
+5. **Interactive prompt** — via `stitcher setup`
 
 ## Environment variables
 
@@ -8,7 +18,7 @@ All settings are loaded from environment variables or a `.env` file in your work
 
 | Variable | Description |
 |----------|-------------|
-| `GITHUB_TOKEN` | GitHub personal access token. Needs read-only access to public repos. [Create one here](https://github.com/settings/personal-access-tokens/new). |
+| `GITHUB_TOKEN` | GitHub personal access token. Needs read-only access to public repos. [Create one here](https://github.com/settings/personal-access-tokens/new). Or use `gh auth login` — stitcher detects it automatically. |
 | LLM API key | One of the provider keys listed below, matching your chosen model. |
 
 ### LLM provider keys
@@ -39,6 +49,7 @@ Model 'gpt-4o' requires OPENAI_API_KEY to be set. Set it in your environment or 
 | `STITCHER_MAX_REFINEMENT_LOOPS` | `3` | Maximum refinement iterations in deep mode. |
 | `STITCHER_MAX_CANDIDATES_PER_SUBPROBLEM` | `5` | Maximum repos to send to the LLM evaluator per sub-problem. Higher values find more results but cost more. |
 | `STITCHER_MAX_FILE_LINES` | `500` | Maximum lines of source code to read per file during evaluation. |
+| `STITCHER_CACHE_DIR` | `~/.cache/stitcher-scout` | Directory for the disk cache of GitHub API responses. |
 | `STITCHER_DEBUG` | *(unset)* | Set to `1` to print full tracebacks on errors. |
 
 ## `.env` file
@@ -52,6 +63,21 @@ ANTHROPIC_API_KEY=sk-ant-...
 
 The `.env` file is loaded automatically. Environment variables take precedence over `.env` values.
 
+## Optional dependencies
+
+Stitcher has optional extras for additional functionality:
+
+```bash
+# System keychain support (macOS Keychain, Linux secret-service)
+pip install stitcher-scout[keychain]
+
+# Disk cache for GitHub API responses (speeds up repeated searches)
+pip install stitcher-scout[cache]
+
+# Both
+pip install stitcher-scout[keychain,cache]
+```
+
 ## CLI overrides
 
 Some settings can be overridden per-run via CLI flags:
@@ -62,7 +88,23 @@ stitcher scout --model gpt-4o "..."
 
 # Override mode
 stitcher scout --mode deep "..."
+
+# Preview search strategy before running
+stitcher scout --explain "..."
+
+# Generate research brief + dependency manifest
+stitcher scout --brief "..."
+stitcher scout --brief --brief-language rust "..."
 ```
+
+## CLI commands
+
+| Command | Description |
+|---------|-------------|
+| `stitcher scout "..."` | Run a search |
+| `stitcher setup` | Interactive credential setup |
+| `stitcher cache-clear` | Clear the disk cache |
+| `stitcher version` | Show version |
 
 ## MCP server environment
 

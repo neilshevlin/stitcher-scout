@@ -39,7 +39,29 @@ stitcher version
 
 Stitcher needs two things: a GitHub token for searching repos, and an API key for the LLM that evaluates results.
 
+### Quick setup
+
+The easiest way to configure credentials is the interactive setup wizard:
+
+```bash
+stitcher setup
+```
+
+This will detect existing credentials (environment variables, `gh` CLI auth, system keychain) and prompt you for anything missing. It can optionally store keys in your system keychain for future use.
+
+### Credential resolution
+
+Stitcher checks for credentials in this order:
+
+1. **Environment variables** — `GITHUB_TOKEN`, `ANTHROPIC_API_KEY`, etc.
+2. **`.env` file** — in your working directory
+3. **`gh` CLI** — if you have the [GitHub CLI](https://cli.github.com) installed and authenticated, stitcher uses your `gh auth token` automatically (zero setup for gh users)
+4. **System keychain** — macOS Keychain, Linux secret-service, etc. (requires `pip install stitcher-scout[keychain]`)
+5. **Interactive prompt** — `stitcher setup` asks for keys and offers to save them to your keychain
+
 ### GitHub token
+
+If you don't have the `gh` CLI, create a token manually:
 
 1. Go to [GitHub Settings > Fine-grained tokens](https://github.com/settings/personal-access-tokens/new)
 2. Give it a name (e.g. "stitcher")
@@ -132,6 +154,26 @@ Or a GitHub URL:
 stitcher scout --repo https://github.com/org/my-project "Add real-time notifications"
 ```
 
+## Preview the search strategy
+
+Use `--explain` to see what stitcher will search for before it runs:
+
+```bash
+stitcher scout --explain "Event sourcing in Go"
+```
+
+This shows a formatted table of sub-problems, query types, and total query count.
+
+## Generate a research brief
+
+Use `--brief` to produce a model-agnostic research brief and a starter dependency manifest alongside the report:
+
+```bash
+stitcher scout --brief "REST API with authentication in Python"
+```
+
+The brief includes per-subproblem recommendations, install commands, specific files to study, and a `requirements.txt` / `Cargo.toml` / `package.json` / `go.mod` snippet. Use `--brief-language` to override the target language.
+
 ## JSON output
 
 For programmatic use, get structured JSON:
@@ -141,6 +183,16 @@ stitcher scout --json "Event sourcing in Go" > results.json
 ```
 
 The JSON includes sub-problems, recommended repos with scores, relevant file paths with line ranges, and identified gaps.
+
+## Cache management
+
+Stitcher caches GitHub API responses locally to speed up repeated searches and reduce API usage. To clear the cache:
+
+```bash
+stitcher cache-clear
+```
+
+The cache is stored at `~/.cache/stitcher-scout/` (override with `STITCHER_CACHE_DIR`).
 
 ## Next steps
 

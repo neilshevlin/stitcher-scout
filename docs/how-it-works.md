@@ -5,7 +5,7 @@ Stitcher runs a multi-stage pipeline that combines GitHub's search API with LLM 
 ## Pipeline overview
 
 ```
-Description ──► Decompose ──► Search ──► Evaluate ──► Report
+Description ──► Decompose ──► Search ──► Evaluate ──► Dedup ──► Report
                                   ▲          │
                                   │          ▼
                                   └── Refine ◄── (deep mode only)
@@ -77,16 +77,49 @@ In deep mode, stitcher runs additional passes. The refinement step:
 
 Each refinement loop feeds new vocabulary back into search, progressively covering more of the ecosystem. The default limit is 3 loops.
 
-### 6. Report
+### 6. Cross-subproblem deduplication
 
-The final report groups results by sub-problem, sorted by combined relevance and quality scores. Each recommendation includes:
+After evaluation, stitcher detects repos that appear in multiple sub-problems. For each duplicate, it keeps only the highest-scored version and drops the others. Repos that span multiple sub-problems are flagged as "Swiss Army knife" repos in the Unexpected Findings section — these are often foundational libraries worth paying attention to.
 
-- Repository name, URL, description, language
-- Stars, forks, contributors, and other quality signals
-- Relevance and quality scores with explanations
-- Specific files and line ranges to examine
-- Caveats about using the code
-- Identified gaps where no good results were found
+### 7. Report
+
+The final report groups results by sub-problem, sorted by combined relevance and quality scores. It includes:
+
+- **Per-subproblem recommendations** — repository, scores, relevant files, caveats
+- **Ecosystem map** — a table of all recommended repos showing which sub-problems each is relevant to, sorted by cross-cutting relevance
+- **Patterns & Insights** — dominant language, common topics, license distribution, average repo age and activity level
+- **Unexpected findings** — cross-cutting repos and other surprises
+- **Gaps** — sub-problems where no good results were found
+- **Cost summary** — total tokens used and estimated cost for the run
+
+## Caching
+
+Stitcher caches GitHub API responses locally using a SQLite-backed disk cache (via `diskcache`). This speeds up repeated searches and reduces GitHub API usage.
+
+| Data type | TTL | Why |
+|-----------|-----|-----|
+| Search results | 1 hour | Repos change, new ones get published |
+| Repo metadata (contributors, CI, releases) | 24 hours | Changes infrequently |
+| File content | 7 days | Source code is stable |
+
+The cache is stored at `~/.cache/stitcher-scout/` (override with `STITCHER_CACHE_DIR`). Clear it with `stitcher cache-clear`.
+
+Install the cache optional dependency for caching: `pip install stitcher-scout[cache]`. Without it, caching is silently disabled.
+
+## Research brief
+
+The `--brief` flag generates a model-agnostic research brief alongside the normal report. The brief contains:
+
+- Per-subproblem recommendations with install commands and GitHub file URLs
+- A starter dependency manifest in your target language's format (requirements.txt, Cargo.toml, package.json, go.mod)
+- Architecture notes derived from patterns across top repos
+- Gaps and risks
+
+This is designed to be consumed by any developer or AI agent as a starting point for implementation.
+
+## Token usage and cost
+
+Each report includes a cost summary showing prompt tokens, completion tokens, total tokens, and estimated cost. This uses litellm's cost estimation which covers all major providers. Use this to understand the cost of different search modes and model choices.
 
 ## Quality scoring
 

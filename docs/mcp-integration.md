@@ -69,6 +69,8 @@ Search GitHub for real, working code relevant to a project description.
 | `mode` | string | No | `"fast"` (default) or `"deep"` (iterative refinement). |
 | `model` | string | No | LLM model override (e.g., `"gpt-4o"`). Uses config default if not set. |
 | `save_report` | string | No | Directory path to write a `.md` report file. |
+| `generate_brief` | boolean | No | When `true`, include a research brief and starter dependency manifest in the response. |
+| `brief_language` | string | No | Target language for the dependency manifest (e.g., `"python"`, `"rust"`). Auto-detected if not set. |
 
 **Returns:** JSON string with:
 
@@ -110,6 +112,15 @@ Search GitHub for real, working code relevant to a project description.
 
 If `save_report` is provided, the response also includes `"report_file": "/path/to/report.md"`.
 
+When `generate_brief` is `true`, the response also includes:
+
+```json
+{
+  "research_brief": "# Research Brief\n...",
+  "deps_manifest": "# requirements.txt — generated from scout results\n..."
+}
+```
+
 ## Usage examples
 
 Once configured, Claude Code can use stitcher during conversations:
@@ -125,6 +136,9 @@ Once configured, Claude Code can use stitcher during conversations:
 
 **With project context:**
 > "Scout for notification system implementations, using our repo for context"
+
+**With research brief:**
+> "Search for authentication libraries and generate a research brief with dependency recommendations"
 
 ## How it works with agents
 
