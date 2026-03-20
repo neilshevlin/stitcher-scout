@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from .models import EvaluatedResult, ScoutReport, SubproblemReport
+from .models import ScoutReport, SubproblemReport
 
 
 # ---------------------------------------------------------------------------

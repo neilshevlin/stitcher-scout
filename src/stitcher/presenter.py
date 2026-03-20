@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections import Counter
 from datetime import datetime, timezone
 
-from .models import EvaluatedResult, ScoutReport, SearchResult
+from .models import ScoutReport, SearchResult
 
 
 def _quality_badge(score: float) -> str:
@@ -254,7 +254,7 @@ def _render_insights(report: ScoutReport) -> list[str]:
 def render_search_results_simple(results: list[SearchResult], query: str) -> str:
     """Render raw search results as markdown (used in skeleton / pre-evaluation)."""
     lines: list[str] = []
-    lines.append(f"# Code Scout Results\n")
+    lines.append("# Code Scout Results\n")
     lines.append(f"**Query:** `{query}`\n")
     lines.append(f"**Results found:** {len(results)}\n")
 

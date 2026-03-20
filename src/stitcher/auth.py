@@ -140,7 +140,7 @@ def _get_gh_token() -> str | None:
 def _prompt_github_token() -> str | None:
     """Interactively prompt for a GitHub token."""
     from rich.console import Console
-    from rich.prompt import Confirm, Prompt
+    from rich.prompt import Prompt
 
     console = Console(stderr=True)
     console.print("\n[bold]GitHub token required[/bold]")

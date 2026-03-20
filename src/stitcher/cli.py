@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import asyncio
 import json
-import sys
 from typing import Annotated, Optional
 
 import typer
@@ -266,7 +265,7 @@ def setup() -> None:
             if key:
                 console.print(f"  [green]\u2713[/green] {env_var} configured")
             else:
-                console.print(f"  [red]\u2717[/red] No API key configured")
+                console.print("  [red]\u2717[/red] No API key configured")
 
     console.print("\n[green]Setup complete![/green]")
     console.print("Try: [bold]stitcher scout \"your project idea\"[/bold]")

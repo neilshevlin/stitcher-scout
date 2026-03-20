@@ -149,7 +149,6 @@ class LLMClient:
                     await asyncio.sleep(wait)
             except litellm.AuthenticationError as e:
                 # Don't retry auth failures — they won't resolve
-                provider = kwargs.get("model", "unknown").split("/")[0]
                 raise LLMError(
                     f"Authentication failed for model '{kwargs.get('model')}'. "
                     f"Check that the correct API key is set (e.g. ANTHROPIC_API_KEY, OPENAI_API_KEY)."

@@ -4,8 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import base64
-import json
-from datetime import datetime, timezone
+from datetime import datetime
 
 import httpx
 

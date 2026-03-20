@@ -173,7 +173,7 @@ async def run_scout(
                             max_candidates=settings.max_candidates_per_subproblem,
                             max_lines=settings.max_file_lines,
                         )
-                    except LLMError as e:
+                    except LLMError:
                         continue
                     all_evaluated.setdefault(brief.id, []).extend(evaluated)
                     eval_count += len(evaluated)
@@ -255,7 +255,7 @@ async def run_scout(
             else:
                 try:
                     refinement = await refine(all_evaluated, briefs, context, llm, model=model)
-                except LLMError as e:
+                except LLMError:
                     break
 
             all_observations.extend(refinement.observations)
