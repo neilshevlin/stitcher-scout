@@ -1,8 +1,8 @@
 site_name: stitcher-scout
-site_url: https://neilshevlin.github.io/stitcher/
+site_url: https://neilshevlin.github.io/stitcher-scout/
 site_description: LLM-powered GitHub code scout — find real, working code for your project
-repo_url: https://github.com/neilshevlin/stitcher
-repo_name: neilshevlin/stitcher
+repo_url: https://github.com/neilshevlin/stitcher-scout
+repo_name: neilshevlin/stitcher-scout
 
 theme:
   name: material

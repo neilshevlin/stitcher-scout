@@ -30,10 +30,10 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/neilshevlin/stitcher"
-Documentation = "https://neilshevlin.github.io/stitcher/"
-Repository = "https://github.com/neilshevlin/stitcher"
-Issues = "https://github.com/neilshevlin/stitcher/issues"
+Homepage = "https://github.com/neilshevlin/stitcher-scout"
+Documentation = "https://neilshevlin.github.io/stitcher-scout/"
+Repository = "https://github.com/neilshevlin/stitcher-scout"
+Issues = "https://github.com/neilshevlin/stitcher-scout/issues"
 
 [project.scripts]
 stitcher = "stitcher.cli:app"
