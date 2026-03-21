@@ -85,6 +85,16 @@ class Settings(BaseSettings):
         default=500,
         validation_alias=AliasChoices("max_file_lines", "STITCHER_MAX_FILE_LINES"),
     )
+    max_runtime: int = Field(
+        default=300,
+        description="Pipeline-level timeout in seconds",
+        validation_alias=AliasChoices("max_runtime", "STITCHER_MAX_RUNTIME"),
+    )
+    max_evaluations: int = Field(
+        default=30,
+        description="Max LLM evaluations per run",
+        validation_alias=AliasChoices("max_evaluations", "STITCHER_MAX_EVALUATIONS"),
+    )
 
     @field_validator("mode", mode="before")
     @classmethod
@@ -93,6 +103,17 @@ class Settings(BaseSettings):
         if v not in ("fast", "deep"):
             raise ValueError(f"Invalid mode '{v}'. Must be 'fast' or 'deep'.")
         return v
+
+    @model_validator(mode="after")
+    def apply_deep_mode_defaults(self) -> Settings:
+        """Bump budget limits when mode is 'deep', unless explicitly set."""
+        if self.mode == "deep":
+            # If the value is still at the fast-mode default, upgrade it
+            if self.max_runtime == 300:
+                self.max_runtime = 600
+            if self.max_evaluations == 30:
+                self.max_evaluations = 60
+        return self
 
     @model_validator(mode="after")
     def check_github_token(self) -> Settings:

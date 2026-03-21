@@ -193,7 +193,6 @@ class GitHubClient:
             repo_data = item.get("repository", {})
             results.append(
                 SearchResult(
-                    brief_id="skeleton",
                     repo=RepoInfo(
                         full_name=repo_data.get("full_name", ""),
                         url=repo_data.get("html_url", ""),
@@ -239,7 +238,6 @@ class GitHubClient:
         for item in items:
             results.append(
                 SearchResult(
-                    brief_id="skeleton",
                     repo=self._parse_repo(item),
                 )
             )

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
+
 from .models import ScoutReport, SubproblemReport
 
 
@@ -356,7 +358,7 @@ def _format_generic(libs: list[dict[str, str]]) -> str:
     return "\n".join(lines)
 
 
-_MANIFEST_FORMATTERS: dict[str, callable] = {
+_MANIFEST_FORMATTERS: dict[str, Callable] = {
     "python": _format_python,
     "rust": _format_rust,
     "javascript": _format_javascript,

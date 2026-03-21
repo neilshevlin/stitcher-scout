@@ -46,7 +46,7 @@ def compute_repo_quality_score(repo: RepoInfo) -> float:
 
     # --- Recency (last push within 6 months = good) ---
     if repo.last_pushed:
-        days_since_push = (datetime.now(timezone.utc) - repo.last_pushed).days
+        days_since_push = max(0, (datetime.now(timezone.utc) - repo.last_pushed).days)
         if days_since_push <= 30:
             recency_score = 1.0
         elif days_since_push <= 90:
@@ -63,7 +63,7 @@ def compute_repo_quality_score(repo: RepoInfo) -> float:
 
     # --- Repo age (older + still active = mature) ---
     if repo.created_at:
-        age_days = (datetime.now(timezone.utc) - repo.created_at).days
+        age_days = max(0, (datetime.now(timezone.utc) - repo.created_at).days)
         if age_days >= 1095:  # 3+ years
             age_score = 1.0
         elif age_days >= 730:  # 2+ years
@@ -174,7 +174,7 @@ def format_quality_signals(repo: RepoInfo) -> str:
     parts.append(f"Contributors: {repo.contributors_count}")
 
     if repo.last_pushed:
-        days = (datetime.now(timezone.utc) - repo.last_pushed).days
+        days = max(0, (datetime.now(timezone.utc) - repo.last_pushed).days)
         if days == 0:
             parts.append("Last push: today")
         elif days == 1:
@@ -183,7 +183,7 @@ def format_quality_signals(repo: RepoInfo) -> str:
             parts.append(f"Last push: {days} days ago")
 
     if repo.created_at:
-        age_days = (datetime.now(timezone.utc) - repo.created_at).days
+        age_days = max(0, (datetime.now(timezone.utc) - repo.created_at).days)
         years = age_days // 365
         if years >= 1:
             parts.append(f"Repo age: {years}+ years")

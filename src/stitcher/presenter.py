@@ -27,7 +27,7 @@ def _format_repo_signals(repo) -> str:
     if repo.contributors_count:
         parts.append(f"👥 {repo.contributors_count}")
     if repo.last_pushed:
-        days = (datetime.now(timezone.utc) - repo.last_pushed).days
+        days = max(0, (datetime.now(timezone.utc) - repo.last_pushed).days)
         if days <= 1:
             parts.append("pushed today")
         elif days <= 30:
@@ -126,7 +126,10 @@ def render_markdown(report: ScoutReport) -> str:
         lines.append(f"- **Prompt tokens:** {tu.prompt_tokens:,}")
         lines.append(f"- **Completion tokens:** {tu.completion_tokens:,}")
         lines.append(f"- **Total tokens:** {tu.total_tokens:,}")
-        lines.append(f"- **Estimated cost:** ${tu.total_cost:.4f}")
+        if tu.total_cost is None:
+            lines.append("- **Estimated cost:** unavailable")
+        else:
+            lines.append(f"- **Estimated cost:** ${tu.total_cost:.4f}")
         lines.append("")
 
     return "\n".join(lines)
@@ -224,9 +227,9 @@ def _render_insights(report: ScoutReport) -> list[str]:
     activity_days = []
     for repo in unique_repos:
         if repo.created_at:
-            ages_days.append((now - repo.created_at).days)
+            ages_days.append(max(0, (now - repo.created_at).days))
         if repo.last_pushed:
-            activity_days.append((now - repo.last_pushed).days)
+            activity_days.append(max(0, (now - repo.last_pushed).days))
 
     if ages_days:
         avg_age = sum(ages_days) / len(ages_days)

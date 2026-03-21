@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 # --- Search inputs ---
@@ -56,13 +56,13 @@ class RepoInfo(BaseModel):
     open_issues_count: int = 0
 
     # Computed score (populated by scoring.py)
-    quality_score: float = 0.0
+    quality_score: float = Field(default=0.0, ge=0.0, le=1.0)
 
 
 class SearchResult(BaseModel):
     """A single result from a GitHub search."""
 
-    brief_id: str
+    brief_id: str = ""
     repo: RepoInfo
     file_path: str | None = None
     matched_text: str | None = None
@@ -84,8 +84,8 @@ class EvaluatedResult(BaseModel):
     """A search result that has been evaluated by the LLM."""
 
     search_result: SearchResult
-    relevance_score: float
-    quality_score: float
+    relevance_score: float = Field(ge=0.0, le=1.0)
+    quality_score: float = Field(ge=0.0, le=1.0)
     summary: str
     relevant_files: list[RelevantFile] = []
     caveats: str | None = None

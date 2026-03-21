@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from unittest.mock import patch
 
-import pytest
 
 from stitcher.auth import resolve_github_token, resolve_llm_key, _get_gh_token
 

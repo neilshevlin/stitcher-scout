@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 import json
+import logging
 import re
 from pathlib import Path
 
 from .github_client import GitHubClient
 from .models import ProjectContext
+
+logger = logging.getLogger("stitcher.context")
 
 
 def _parse_pyproject(content: str) -> tuple[str | None, list[str]]:
@@ -103,10 +106,15 @@ async def parse_project_context(
         for manifest, parser in MANIFEST_PARSERS.items():
             manifest_path = local / manifest
             if manifest_path.exists():
-                content = manifest_path.read_text()
-                lang, deps = parser(content)
-                context.language = lang
-                context.dependencies = deps
+                try:
+                    content = manifest_path.read_text()
+                    lang, deps = parser(content)
+                    context.language = lang
+                    context.dependencies = deps
+                except Exception as exc:
+                    msg = f"Failed to parse local manifest {manifest}: {exc}"
+                    logger.warning(msg)
+                    context.description += f" [Warning: {msg}]"
                 break
         return context
 
@@ -121,7 +129,13 @@ async def parse_project_context(
                 context.language = lang
                 context.dependencies = deps
                 break
-            except Exception:
+            except Exception as exc:
+                msg = (
+                    f"Failed to fetch/parse {manifest} from "
+                    f"{full_name}: {exc}"
+                )
+                logger.warning(msg)
+                context.description += f" [Warning: {msg}]"
                 continue
 
     return context

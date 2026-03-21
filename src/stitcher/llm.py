@@ -33,7 +33,7 @@ class TokenUsage:
     prompt_tokens: int = 0
     completion_tokens: int = 0
     total_tokens: int = 0
-    total_cost: float = 0.0
+    total_cost: float | None = 0.0
     model: str = ""
 
 
@@ -74,9 +74,10 @@ class LLMClient:
 
         try:
             cost = litellm.completion_cost(completion_response=response)
-            self._usage.total_cost += cost
+            if self._usage.total_cost is not None:
+                self._usage.total_cost += cost
         except Exception:
-            pass
+            self._usage.total_cost = None
 
     async def complete(self, prompt: str, system: str = "", model: str = "claude-sonnet-4-20250514") -> str:
         """Simple text completion."""

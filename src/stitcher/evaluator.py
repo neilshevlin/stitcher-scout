@@ -19,6 +19,71 @@ logger = logging.getLogger("stitcher.evaluator")
 # Minimum relevance score to include in results
 MIN_RELEVANCE = 0.4
 
+# Preferred implementation file extensions
+_IMPL_EXTENSIONS = frozenset({
+    ".py", ".rs", ".go", ".js", ".ts", ".java", ".cpp", ".c", ".rb",
+})
+
+# File basenames to deprioritize (entry points / config with little impl logic)
+_DEPRIORITIZED_BASENAMES = frozenset({
+    "setup.py", "setup.cfg", "conftest.py", "__init__.py", "__main__.py", "main.go",
+})
+
+# Extensions to deprioritize (non-source files)
+_DEPRIORITIZED_EXTENSIONS = frozenset({
+    ".md", ".txt", ".yml", ".yaml", ".toml", ".cfg", ".ini",
+})
+
+# Directories whose contents should be deprioritized
+_DEPRIORITIZED_DIRS = frozenset({
+    "test", "tests", "spec", "specs", "docs", "doc",
+    "examples", "example", ".github", "scripts", "bin",
+})
+
+# Source directories whose contents should be boosted
+_PREFERRED_DIRS = frozenset({
+    "src", "lib", "pkg", "internal", "cmd",
+})
+
+
+def _score_file_for_selection(path: str) -> int:
+    """Score a file path for selection priority. Higher is better."""
+    import os
+
+    parts = path.split("/")
+    basename = parts[-1] if parts else path
+    _, ext = os.path.splitext(basename)
+    ext = ext.lower()
+    dirs = {p.lower() for p in parts[:-1]}
+
+    score = 0
+
+    # Prefer implementation file extensions
+    if ext in _IMPL_EXTENSIONS:
+        score += 10
+
+    # Deprioritize non-source extensions
+    if ext in _DEPRIORITIZED_EXTENSIONS:
+        score -= 10
+
+    # Deprioritize specific basenames
+    if basename in _DEPRIORITIZED_BASENAMES:
+        score -= 5
+
+    # Prefer files in source directories
+    if dirs & _PREFERRED_DIRS:
+        score += 5
+
+    # Deprioritize files in test/doc/example directories
+    if dirs & _DEPRIORITIZED_DIRS:
+        score -= 5
+
+    # Deprioritize dotfiles
+    if basename.startswith("."):
+        score -= 10
+
+    return score
+
 
 def _extract_search_terms(brief: SearchBrief) -> list[str]:
     """Extract key search terms from a brief for focus scoring."""
@@ -59,15 +124,16 @@ async def _evaluate_one(
         if not file_path:
             # For repo-level results, try to find a relevant file from the tree
             tree = await gh.get_directory_tree(result.repo.full_name)
-            # Pick the first non-config, non-test file as a starting point
-            candidates = [
-                f for f in tree
-                if not f.startswith(".") and not f.lower().startswith("test")
-                and f.endswith((".py", ".go", ".js", ".ts", ".rs", ".java"))
-            ]
-            if not candidates:
+            # Score each file and pick the best candidate
+            if not tree:
                 return None
-            file_path = candidates[0]
+            scored = sorted(tree, key=_score_file_for_selection, reverse=True)
+            # Only consider files with implementation extensions as a baseline
+            best = scored[0]
+            if _score_file_for_selection(best) < 0:
+                # Even the best candidate is low quality; skip
+                return None
+            file_path = best
 
         code = await gh.get_file_content(result.repo.full_name, file_path, max_lines=max_lines)
     except httpx.HTTPStatusError as exc:

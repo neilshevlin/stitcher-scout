@@ -143,14 +143,22 @@ async def execute_briefs(
     3 variants (by stars, by recently updated, mid-range stars) to diversify results.
     """
     # 1. Build all search tasks, applying stratification to repo queries
+    search_semaphore = asyncio.Semaphore(15)
+
+    async def _bounded_search(
+        brief: SearchBrief, query: SearchQuery, **kwargs: str,
+    ) -> list[SearchResult]:
+        async with search_semaphore:
+            return await _run_single_query(brief, query, gh, **kwargs)
+
     tasks = []
     for brief in briefs:
         for query in brief.queries:
             if stratify and query.search_type == "repository":
                 for variant_query, sort, order in _stratify_repo_query(query):
-                    tasks.append(_run_single_query(brief, variant_query, gh, sort=sort, order=order))
+                    tasks.append(_bounded_search(brief, variant_query, sort=sort, order=order))
             else:
-                tasks.append(_run_single_query(brief, query, gh))
+                tasks.append(_bounded_search(brief, query))
 
     all_results: list[SearchResult] = []
     for batch in await asyncio.gather(*tasks):
@@ -169,6 +177,10 @@ async def execute_briefs(
             seen[key] = r
 
     deduped = list(seen.values())
+
+    # Pre-filter: skip repos with zero stars AND zero forks — they will almost
+    # certainly fail the quality threshold, so enriching them wastes 3 API calls each.
+    deduped = [r for r in deduped if r.repo.stars > 0 or r.repo.forks > 0]
 
     # 3. Enrich unique repos with full metadata + quality signals
     unique_repos: dict[str, SearchResult] = {}

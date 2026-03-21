@@ -2,13 +2,10 @@
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, MagicMock, patch
 
-import pytest
 
 from stitcher.models import (
     EvaluatedResult,
-    ProjectContext,
     RelevantFile,
     RepoInfo,
     ScoutReport,
@@ -140,7 +137,6 @@ class TestPresenter:
 class TestDeduplication:
     def test_cross_cutting_repos_detected(self):
         """Repos appearing in multiple subproblems should be noted as Swiss Army knife repos."""
-        from stitcher.models import ScoutReport
 
         # Simulate what agent.py does: track repos across briefs
         all_evaluated = {
