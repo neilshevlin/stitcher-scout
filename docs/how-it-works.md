@@ -121,6 +121,8 @@ This is designed to be consumed by any developer or AI agent as a starting point
 
 Each report includes a cost summary showing prompt tokens, completion tokens, total tokens, and estimated cost. This uses litellm's cost estimation which covers all major providers. Use this to understand the cost of different search modes and model choices.
 
+If cost calculation fails (e.g., unsupported model or litellm pricing data unavailable), the report shows "Estimated cost: unavailable" rather than a misleading $0.00.
+
 ## Quality scoring
 
 Repos are scored on a weighted 0.0-1.0 scale using these signals:

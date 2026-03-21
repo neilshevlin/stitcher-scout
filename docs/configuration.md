@@ -49,6 +49,8 @@ Model 'gpt-4o' requires OPENAI_API_KEY to be set. Set it in your environment or 
 | `STITCHER_MAX_REFINEMENT_LOOPS` | `3` | Maximum refinement iterations in deep mode. |
 | `STITCHER_MAX_CANDIDATES_PER_SUBPROBLEM` | `5` | Maximum repos to send to the LLM evaluator per sub-problem. Higher values find more results but cost more. |
 | `STITCHER_MAX_FILE_LINES` | `500` | Maximum lines of source code to read per file during evaluation. |
+| `STITCHER_MAX_RUNTIME` | `300` (fast) / `600` (deep) | Pipeline-level timeout in seconds. If the scout run exceeds this, it aborts with a clear error. |
+| `STITCHER_MAX_EVALUATIONS` | `30` (fast) / `60` (deep) | Maximum number of LLM evaluations per run. Limits cost in deep mode. When exhausted, the report includes a warning. |
 | `STITCHER_CACHE_DIR` | `~/.cache/stitcher-scout` | Directory for the disk cache of GitHub API responses. |
 | `STITCHER_DEBUG` | *(unset)* | Set to `1` to print full tracebacks on errors. |
 
